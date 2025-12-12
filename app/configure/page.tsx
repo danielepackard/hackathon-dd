@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 interface Player {
   id: number;
+  name: string;
   species: string;
   class: string;
   customSpecies: string;
@@ -26,7 +27,7 @@ const classOptions = [
 export default function ConfigurePage() {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([
-    { id: 0, species: '', class: '', customSpecies: '', customClass: '' }
+    { id: 0, name: '', species: '', class: '', customSpecies: '', customClass: '' }
   ]);
   const [playerIdCounter, setPlayerIdCounter] = useState(1);
   
@@ -56,6 +57,7 @@ export default function ConfigurePage() {
   const addPlayer = () => {
     setPlayers([...players, { 
       id: playerIdCounter, 
+      name: '',
       species: '', 
       class: '', 
       customSpecies: '', 
@@ -157,6 +159,7 @@ export default function ConfigurePage() {
       musicTheme: musicTheme === 'custom' ? musicCustom : musicTheme,
       players: players.map((p, index) => ({
         playerNumber: index + 1,
+        name: p.name,
         species: p.species === 'custom' ? p.customSpecies : p.species,
         class: p.class === 'custom' ? p.customClass : p.class
       })),
@@ -172,7 +175,7 @@ export default function ConfigurePage() {
   };
 
   const isValid = campaignLength && genre && players.some(p => 
-    (p.species || p.customSpecies) && (p.class || p.customClass)
+    p.name && (p.species || p.customSpecies) && (p.class || p.customClass)
   );
 
   return (
@@ -354,6 +357,16 @@ export default function ConfigurePage() {
                           ×
                         </button>
                       )}
+                    </div>
+                    <div className="configure-player-input-group">
+                      <label>Name:</label>
+                      <input
+                        type="text"
+                        placeholder="Enter player name..."
+                        value={player.name}
+                        onChange={(e) => updatePlayer(player.id, 'name', e.target.value)}
+                        style={{ width: '100%', padding: '8px 12px', fontSize: '0.95rem', fontFamily: 'Cinzel, serif', background: 'rgba(26, 26, 26, 0.8)', border: '2px solid var(--dnd-border)', borderRadius: '6px', color: 'var(--dnd-text-light)' }}
+                      />
                     </div>
                     <div className="configure-player-input-group">
                       <label>Species:</label>

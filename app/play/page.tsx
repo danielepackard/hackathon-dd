@@ -102,8 +102,44 @@ export default function PlayPage() {
     const connectAgent = async () => {
       setConnectionStatus("connecting");
       try {
-        // First, get a signed URL from our API
-        const tokenResponse = await fetch("/api/elevenlabs-token");
+        // Read configuration from localStorage
+        const configStr = localStorage.getItem("dnd-game-config");
+        if (!configStr) {
+          throw new Error("No game configuration found. Please configure your game first.");
+        }
+
+        const config = JSON.parse(configStr);
+        
+        // Map configuration to ElevenLabs variables
+        const variables: Record<string, string> = {
+          campaignLength: config.campaignLength || "",
+          campaignGenre: config.genre || "",
+        };
+
+        // Map players (up to 3)
+        config.players?.slice(0, 3).forEach((player: any, index: number) => {
+          const playerNum = index + 1;
+          variables[`player${playerNum}Name`] = player.name || "";
+          variables[`player${playerNum}Species`] = player.species || "";
+          variables[`player${playerNum}Class`] = player.class || "";
+        });
+
+        // Fill in empty slots for players 2 and 3 if not present
+        for (let i = (config.players?.length || 0); i < 3; i++) {
+          const playerNum = i + 1;
+          variables[`player${playerNum}Name`] = "";
+          variables[`player${playerNum}Species`] = "";
+          variables[`player${playerNum}Class`] = "";
+        }
+
+        // First, get a signed URL from our API with variables
+        const tokenResponse = await fetch("/api/elevenlabs-token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ variables }),
+        });
         const tokenData = await tokenResponse.json();
 
         if (!tokenResponse.ok || !tokenData.signedUrl) {
@@ -147,8 +183,44 @@ export default function PlayPage() {
     setConnectionStatus("connecting");
     setErrorMessage(null);
     try {
-      // Get a fresh signed URL
-      const tokenResponse = await fetch("/api/elevenlabs-token");
+      // Read configuration from localStorage
+      const configStr = localStorage.getItem("dnd-game-config");
+      if (!configStr) {
+        throw new Error("No game configuration found. Please configure your game first.");
+      }
+
+      const config = JSON.parse(configStr);
+      
+      // Map configuration to ElevenLabs variables
+      const variables: Record<string, string> = {
+        campaignLength: config.campaignLength || "",
+        campaignGenre: config.genre || "",
+      };
+
+      // Map players (up to 3)
+      config.players?.slice(0, 3).forEach((player: any, index: number) => {
+        const playerNum = index + 1;
+        variables[`player${playerNum}Name`] = player.name || "";
+        variables[`player${playerNum}Species`] = player.species || "";
+        variables[`player${playerNum}Class`] = player.class || "";
+      });
+
+      // Fill in empty slots for players 2 and 3 if not present
+      for (let i = (config.players?.length || 0); i < 3; i++) {
+        const playerNum = i + 1;
+        variables[`player${playerNum}Name`] = "";
+        variables[`player${playerNum}Species`] = "";
+        variables[`player${playerNum}Class`] = "";
+      }
+
+      // Get a fresh signed URL with variables
+      const tokenResponse = await fetch("/api/elevenlabs-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ variables }),
+      });
       const tokenData = await tokenResponse.json();
 
       if (!tokenResponse.ok || !tokenData.signedUrl) {
