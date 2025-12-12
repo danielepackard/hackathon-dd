@@ -25,6 +25,7 @@ export default function PlayPage() {
 
   const dialogueEndRef = useRef<HTMLDivElement>(null);
   const imageGenerationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
 
   // ElevenLabs conversation hook with controlled mic mute state
   const conversation = useConversation({
@@ -102,6 +103,59 @@ export default function PlayPage() {
       setIsImageLoading(false);
     }
   }, [isImageLoading]);
+
+  // Load and play background music at 5% volume
+  useEffect(() => {
+    let audioUrl: string | null = null;
+    
+    const storedAudioData = localStorage.getItem("generated-music-audio");
+    if (storedAudioData) {
+      try {
+        // Convert base64 audio to playable format
+        const audioData = atob(storedAudioData);
+        const audioArray = new Uint8Array(audioData.length);
+        for (let i = 0; i < audioData.length; i++) {
+          audioArray[i] = audioData.charCodeAt(i);
+        }
+        
+        const audioBlob = new Blob([audioArray], { type: 'audio/mpeg' });
+        audioUrl = URL.createObjectURL(audioBlob);
+        
+        // Create audio element and set volume to 5%
+        const audio = new Audio(audioUrl);
+        audio.volume = 0.05; // 5% volume
+        audio.loop = true; // Loop the music
+        
+        // Try to play, but handle autoplay restrictions
+        audio.play().catch((error) => {
+          console.log("Autoplay prevented, user interaction required:", error);
+        });
+        
+        backgroundMusicRef.current = audio;
+      } catch (error) {
+        console.error("Error loading background music:", error);
+      }
+    }
+    
+    // Also check for any currently playing audio elements and lower their volume
+    const allAudioElements = document.querySelectorAll('audio');
+    allAudioElements.forEach((audio) => {
+      if (!audio.paused) {
+        audio.volume = 0.1;
+      }
+    });
+    
+    // Cleanup function
+    return () => {
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.pause();
+        backgroundMusicRef.current = null;
+      }
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, []);
 
   // Connect to ElevenLabs agent on mount
   useEffect(() => {
@@ -186,6 +240,11 @@ export default function PlayPage() {
 
     return () => {
       conversation.endSession();
+      // Clean up background music
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.pause();
+        backgroundMusicRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface Player {
@@ -37,6 +37,7 @@ export default function ConfigurePage() {
   const [musicCustom, setMusicCustom] = useState("");
   const [showMusicCustom, setShowMusicCustom] = useState(false);
   const [isGeneratingMusic, setIsGeneratingMusic] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const [campaignLength, setCampaignLength] = useState("normal");
   const [genre, setGenre] = useState("Exploration");
@@ -161,6 +162,9 @@ export default function ConfigurePage() {
 
       const data = await response.json();
       if (data.success && data.audio) {
+        // Store audio data in localStorage for use in play page
+        localStorage.setItem("generated-music-audio", data.audio);
+        
         // Convert base64 audio to playable format
         const audioData = atob(data.audio);
         const audioArray = new Uint8Array(audioData.length);
@@ -173,6 +177,7 @@ export default function ConfigurePage() {
         
         // Create and play audio
         const audio = new Audio(audioUrl);
+        audioRef.current = audio;
         audio.play().catch((error) => {
           console.error("Error playing audio:", error);
         });
@@ -180,6 +185,7 @@ export default function ConfigurePage() {
         // Clean up the object URL after playback ends
         audio.addEventListener('ended', () => {
           URL.revokeObjectURL(audioUrl);
+          audioRef.current = null;
         });
         
         console.log("Music generated and playing successfully");
@@ -193,6 +199,20 @@ export default function ConfigurePage() {
   };
 
   const handleStartGame = () => {
+    // Stop any playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    
+    // Also stop any other audio elements that might be playing
+    const allAudioElements = document.querySelectorAll('audio');
+    allAudioElements.forEach((audio) => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+    
     const gameData = {
       musicTheme: musicTheme === 'custom' ? musicCustom : musicTheme,
       players: players.map((p, index) => ({
