@@ -23,8 +23,9 @@ export default function PlayPage() {
   const dialogueEndRef = useRef<HTMLDivElement>(null);
   const imageGenerationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ElevenLabs conversation hook
+  // ElevenLabs conversation hook with controlled mic mute state
   const conversation = useConversation({
+    micMuted: isMuted,
     onConnect: () => {
       console.log("ElevenLabs agent connected");
       setConnectionStatus("connected");
@@ -133,19 +134,10 @@ export default function PlayPage() {
     dialogueEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [dialogueHistory]);
 
-  // Handle mute toggle
-  const handleMuteToggle = useCallback(async () => {
-    try {
-      if (isMuted) {
-        await conversation.setVolume({ volume: 1 });
-      } else {
-        await conversation.setVolume({ volume: 0 });
-      }
-      setIsMuted(!isMuted);
-    } catch (error) {
-      console.error("Error toggling mute:", error);
-    }
-  }, [conversation, isMuted]);
+  // Handle mute toggle (controls microphone input via controlled state)
+  const handleMuteToggle = useCallback(() => {
+    setIsMuted((prev) => !prev);
+  }, []);
 
   // Handle reconnect
   const handleReconnect = async () => {
