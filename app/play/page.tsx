@@ -63,10 +63,16 @@ export default function PlayPage() {
         }, 2000);
       }
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       console.error("ElevenLabs error:", error);
       setConnectionStatus("error");
-      setErrorMessage(error.message || "Connection error occurred");
+      let errorMessage = "Connection error occurred";
+      if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error && typeof error === "object" && "message" in error) {
+        errorMessage = String(error.message);
+      }
+      setErrorMessage(errorMessage);
     },
   });
 
@@ -109,6 +115,7 @@ export default function PlayPage() {
         }
 
         const config = JSON.parse(configStr);
+        console.log("[ElevenLabs Init] Raw config from localStorage:", config);
         
         // Map configuration to ElevenLabs variables
         const variables: Record<string, string> = {
@@ -132,23 +139,39 @@ export default function PlayPage() {
           variables[`player${playerNum}Class`] = "";
         }
 
-        // First, get a signed URL from our API with variables
-        const tokenResponse = await fetch("/api/elevenlabs-token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        console.log("[ElevenLabs Init] Mapped variables being sent to API:", variables);
+        console.log("[ElevenLabs Init] Variables summary:", {
+          campaignLength: variables.campaignLength,
+          campaignGenre: variables.campaignGenre,
+          player1: {
+            name: variables.player1Name,
+            species: variables.player1Species,
+            class: variables.player1Class,
           },
-          body: JSON.stringify({ variables }),
+          player2: {
+            name: variables.player2Name,
+            species: variables.player2Species,
+            class: variables.player2Class,
+          },
+          player3: {
+            name: variables.player3Name,
+            species: variables.player3Species,
+            class: variables.player3Class,
+          },
         });
+
+        // First, get a signed URL from our API (variables are passed separately to startSession)
+        const tokenResponse = await fetch("/api/elevenlabs-token");
         const tokenData = await tokenResponse.json();
 
         if (!tokenResponse.ok || !tokenData.signedUrl) {
           throw new Error(tokenData.error || "Failed to get signed URL");
         }
 
-        // Connect using the signed URL
+        // Connect using the signed URL and pass dynamic variables
         await conversation.startSession({
           signedUrl: tokenData.signedUrl,
+          dynamicVariables: variables,
         });
       } catch (error) {
         console.error("Failed to connect to agent:", error);
@@ -190,6 +213,7 @@ export default function PlayPage() {
       }
 
       const config = JSON.parse(configStr);
+      console.log("[ElevenLabs Reconnect] Raw config from localStorage:", config);
       
       // Map configuration to ElevenLabs variables
       const variables: Record<string, string> = {
@@ -213,14 +237,10 @@ export default function PlayPage() {
         variables[`player${playerNum}Class`] = "";
       }
 
-      // Get a fresh signed URL with variables
-      const tokenResponse = await fetch("/api/elevenlabs-token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ variables }),
-      });
+      console.log("[ElevenLabs Reconnect] Mapped variables:", variables);
+
+      // Get a fresh signed URL (variables are passed separately to startSession)
+      const tokenResponse = await fetch("/api/elevenlabs-token");
       const tokenData = await tokenResponse.json();
 
       if (!tokenResponse.ok || !tokenData.signedUrl) {
@@ -229,6 +249,7 @@ export default function PlayPage() {
 
       await conversation.startSession({
         signedUrl: tokenData.signedUrl,
+        dynamicVariables: variables,
       });
     } catch (error) {
       console.error("Reconnection failed:", error);

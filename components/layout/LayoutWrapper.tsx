@@ -11,9 +11,10 @@ export default function LayoutWrapper({
 }) {
   const pathname = usePathname();
   const isPlayPage = pathname === "/play";
+  const isConfigurePage = pathname === "/configure";
 
-  if (isPlayPage) {
-    // Play page: no navigation or footer for immersive experience
+  if (isPlayPage || isConfigurePage) {
+    // Play and Configure pages: no navigation or footer for immersive experience
     return <>{children}</>;
   }
 
