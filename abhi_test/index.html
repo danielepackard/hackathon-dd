@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Game Setup - Forge Your Adventure</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="title">⚔️ Forge Your Adventure ⚔️</h1>
+            <p class="subtitle">Prepare your quest, assemble your party, and begin your legend</p>
+        </header>
+
+        <main class="setup-form">
+            <div class="form-grid">
+                <!-- Musical Theme Section -->
+                <section class="form-section compact-section">
+                    <h2 class="section-title">🎵 Musical Theme</h2>
+                    <div class="input-group">
+                        <label for="music-theme">Choose a theme or create your own:</label>
+                        <div class="input-with-voice">
+                            <select id="music-theme" class="dropdown">
+                                <option value="">Select a theme...</option>
+                                <option value="spunky">Spunky</option>
+                                <option value="funky">Funky</option>
+                                <option value="adventurous">Adventurous</option>
+                                <option value="thrilling">Thrilling</option>
+                                <option value="eerie">Eerie</option>
+                                <option value="spicy">Spicy</option>
+                                <option value="classic">Classic</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                            <button type="button" class="voice-btn" id="music-voice-btn" title="Speak your theme">
+                                🎤
+                            </button>
+                        </div>
+                        <input type="text" id="music-custom" class="custom-input" placeholder="Or type your custom musical theme..." style="display: none;">
+                        <div id="music-voice-status" class="voice-status"></div>
+                    </div>
+                </section>
+
+                <!-- Campaign Options Section -->
+                <section class="form-section compact-section">
+                    <h2 class="section-title">📜 Campaign Options</h2>
+                    
+                    <div class="input-group">
+                        <label for="campaign-length">Campaign Length:</label>
+                        <select id="campaign-length" class="dropdown">
+                            <option value="">Select length...</option>
+                            <option value="quickie-quickie">Quickie Quickie</option>
+                            <option value="quickie">Quickie</option>
+                            <option value="short">Short</option>
+                            <option value="normal">Normal</option>
+                            <option value="long">Long</option>
+                            <option value="epic">Epic</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="campaign-genre">Genre:</label>
+                        <div class="input-with-voice">
+                            <select id="campaign-genre" class="dropdown">
+                                <option value="">Select genre...</option>
+                                <option value="Investigation">Investigation</option>
+                                <option value="Exploration">Exploration</option>
+                                <option value="Heist">Heist</option>
+                                <option value="Roleplay and intrigue">Roleplay and intrigue</option>
+                                <option value="Combat">Combat</option>
+                                <option value="Comedy">Comedy</option>
+                                <option value="Delivery">Delivery</option>
+                                <option value="Low fantasy">Low fantasy</option>
+                                <option value="Missions and quest chains">Missions and quest chains</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                            <button type="button" class="voice-btn" id="genre-voice-btn" title="Speak your genre">
+                                🎤
+                            </button>
+                        </div>
+                        <input type="text" id="genre-custom" class="custom-input" placeholder="Or type your custom genre..." style="display: none;">
+                        <div id="genre-voice-status" class="voice-status"></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Players Section -->
+            <section class="form-section players-section">
+                <h2 class="section-title">👥 Your Party</h2>
+                <div id="players-container"></div>
+                <button type="button" class="add-btn" id="add-player-btn">+ Add Player</button>
+            </section>
+
+            <!-- Start Game Button -->
+            <div class="start-game-container">
+                <button type="button" class="start-game-btn" id="start-game-btn">
+                    🚀 Begin Your Quest
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Character Modal -->
+    <div id="character-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="modal-character-name">Character Details</h2>
+            <div id="modal-character-image" class="character-image-container">
+                <div class="character-placeholder">🎭</div>
+            </div>
+            <div id="modal-character-info" class="character-info"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
