@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Textarea from "@/components/ui/Textarea";
 import { Player, GameConfiguration } from "@/lib/types";
 
 export default function ConfigurePage() {
@@ -16,6 +17,15 @@ export default function ConfigurePage() {
   const [players, setPlayers] = useState<Player[]>([
     { id: "1", name: "", characterName: "", characterClass: "", level: 1 },
   ]);
+  const [musicPrompt, setMusicPrompt] = useState("");
+  const [isGeneratingMusic, setIsGeneratingMusic] = useState(false);
+  const [musicGenerationStatus, setMusicGenerationStatus] = useState<{
+    type: "success" | "error" | null;
+    message: string;
+  }>({ type: null, message: "" });
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [hasAudio, setHasAudio] = useState(false);
 
   const addPlayer = () => {
     setPlayers([
@@ -42,6 +52,123 @@ export default function ConfigurePage() {
     );
   };
 
+  const handleGenerateMusic = async () => {
+    if (!musicPrompt.trim()) {
+      setMusicGenerationStatus({
+        type: "error",
+        message: "Please enter a music prompt",
+      });
+      return;
+    }
+
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setHasAudio(false);
+    setIsAudioPlaying(false);
+
+    setIsGeneratingMusic(true);
+    setMusicGenerationStatus({ type: null, message: "" });
+
+    try {
+      console.log("[Frontend] Sending music generation request:", {
+        prompt: musicPrompt.substring(0, 100) + (musicPrompt.length > 100 ? "..." : ""),
+      });
+
+      const response = await fetch("/api/music/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: musicPrompt }),
+      });
+
+      const data = await response.json();
+
+      console.log("[Frontend] Received response:", {
+        success: data.success,
+        hasAudio: !!data.audio,
+        audioSize: data.audioSize,
+        format: data.format,
+      });
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate music");
+      }
+
+      if (data.audio) {
+        // Create audio element and auto-play
+        const audio = new Audio(`data:audio/${data.format || "mpeg"};base64,${data.audio}`);
+        audioRef.current = audio;
+
+        // Set up event listeners
+        audio.onloadeddata = () => {
+          console.log("[Frontend] Audio loaded, starting playback");
+          setHasAudio(true);
+        };
+
+        audio.onplay = () => {
+          console.log("[Frontend] Audio playback started");
+          setIsAudioPlaying(true);
+          setMusicGenerationStatus({
+            type: "success",
+            message: "Music generated and playing!",
+          });
+        };
+
+        audio.onpause = () => {
+          console.log("[Frontend] Audio playback paused");
+          setIsAudioPlaying(false);
+        };
+
+        audio.onerror = (e) => {
+          console.error("[Frontend] Audio playback error:", e);
+          setHasAudio(false);
+          setIsAudioPlaying(false);
+          setMusicGenerationStatus({
+            type: "error",
+            message: "Failed to play audio",
+          });
+        };
+
+        audio.onended = () => {
+          console.log("[Frontend] Audio playback ended");
+          setIsAudioPlaying(false);
+          setMusicGenerationStatus({
+            type: "success",
+            message: "Music finished playing",
+          });
+        };
+
+        // Attempt to auto-play
+        setHasAudio(true);
+        audio.play().catch((error) => {
+          console.error("[Frontend] Auto-play blocked:", error);
+          setIsAudioPlaying(false);
+          setMusicGenerationStatus({
+            type: "success",
+            message: "Music generated! Click play to listen.",
+          });
+        });
+      } else {
+        setMusicGenerationStatus({
+          type: "success",
+          message: data.message || "Music generated successfully!",
+        });
+      }
+    } catch (error) {
+      console.error("[Frontend] Error generating music:", error);
+      setMusicGenerationStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "Failed to generate music",
+      });
+    } finally {
+      setIsGeneratingMusic(false);
+    }
+  };
+
   const handleStartGame = () => {
     const config: GameConfiguration = {
       campaignName,
@@ -57,6 +184,16 @@ export default function ConfigurePage() {
     // Navigate to gameplay page
     router.push("/play");
   };
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const isValid = campaignName.trim() !== "" && players.some((p) => p.name.trim() !== "");
 
@@ -174,6 +311,77 @@ export default function ConfigurePage() {
               >
                 + Add Player
               </Button>
+            </div>
+          </Card>
+
+          {/* Music Generation */}
+          <Card title="Music Generation">
+            <div className="space-y-4">
+              <Textarea
+                label="Music Prompt"
+                placeholder="Describe the music you want to generate... (e.g., 'Epic fantasy battle music with orchestral instruments')"
+                value={musicPrompt}
+                onChange={(e) => setMusicPrompt(e.target.value)}
+                rows={4}
+              />
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={handleGenerateMusic}
+                  disabled={isGeneratingMusic || !musicPrompt.trim()}
+                  className="flex-shrink-0"
+                >
+                  {isGeneratingMusic ? "Generating..." : "Generate Music"}
+                </Button>
+                {musicGenerationStatus.type && (
+                  <p
+                    className={`text-sm ${
+                      musicGenerationStatus.type === "success"
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {musicGenerationStatus.message}
+                  </p>
+                )}
+              </div>
+              {hasAudio && audioRef.current && (
+                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                  <Button
+                    onClick={() => {
+                      if (audioRef.current) {
+                        if (audioRef.current.paused) {
+                          audioRef.current.play();
+                        } else {
+                          audioRef.current.pause();
+                        }
+                      }
+                    }}
+                    variant="secondary"
+                    className="flex-shrink-0"
+                  >
+                    {isAudioPlaying ? "⏸ Pause" : "▶ Play"}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current.currentTime = 0;
+                        setIsAudioPlaying(false);
+                      }
+                    }}
+                    variant="secondary"
+                    className="flex-shrink-0"
+                  >
+                    ⏹ Stop
+                  </Button>
+                  <span className="text-sm text-gray-600">
+                    Audio controls
+                  </span>
+                </div>
+              )}
+              <p className="text-xs text-gray-500">
+                Note: Make sure you have set your ELEVEN_LABS_API_KEY in your environment variables.
+              </p>
             </div>
           </Card>
 
