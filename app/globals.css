@@ -296,15 +296,50 @@ body {
 .configure-dropdown,
 .configure-custom-input {
   flex: 1;
-  padding: 12px 15px;
+  padding: 12px 40px 12px 15px;
   font-size: 1rem;
   font-family: 'Cinzel', serif;
-  background: rgba(26, 26, 26, 0.8);
+  background-color: rgba(26, 26, 26, 0.8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23D4AF37' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 15px center;
+  background-size: 12px;
   border: 2px solid var(--dnd-border);
   border-radius: 8px;
   color: var(--dnd-text-light);
   cursor: pointer;
   transition: all 0.3s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.configure-custom-input {
+  background-image: none;
+  padding: 12px 15px;
+}
+
+.configure-dropdown:focus {
+  color: var(--dnd-text-light);
+  background-color: rgba(26, 26, 26, 0.9);
+}
+
+.configure-dropdown option {
+  background: rgba(26, 26, 26, 0.95);
+  color: var(--dnd-text-light);
+  padding: 10px;
+}
+
+.configure-dropdown option:checked,
+.configure-dropdown option[selected] {
+  background: var(--dnd-primary);
+  color: var(--dnd-text-gold);
+  font-weight: 600;
+}
+
+.configure-dropdown:not([value=""]) {
+  color: var(--dnd-text-gold);
+  font-weight: 500;
 }
 
 .configure-dropdown:hover,
@@ -439,13 +474,48 @@ body {
 .configure-player-input-with-voice select,
 .configure-player-input-with-voice input {
   flex: 1;
-  padding: 8px 12px;
+  padding: 8px 35px 8px 12px;
   font-size: 0.95rem;
   font-family: 'Cinzel', serif;
-  background: rgba(26, 26, 26, 0.8);
+  background-color: rgba(26, 26, 26, 0.8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23D4AF37' d='M5 8L1 4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px;
   border: 2px solid var(--dnd-border);
   border-radius: 6px;
   color: var(--dnd-text-light);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.configure-player-input-with-voice select:focus {
+  color: var(--dnd-text-light);
+  background-color: rgba(26, 26, 26, 0.9);
+}
+
+.configure-player-input-with-voice input {
+  background-image: none;
+  padding: 8px 12px;
+}
+
+.configure-player-input-with-voice select option {
+  background: rgba(26, 26, 26, 0.95);
+  color: var(--dnd-text-light);
+  padding: 10px;
+}
+
+.configure-player-input-with-voice select option:checked,
+.configure-player-input-with-voice select option[selected] {
+  background: var(--dnd-primary);
+  color: var(--dnd-text-gold);
+  font-weight: 600;
+}
+
+.configure-player-input-with-voice select:not([value=""]) {
+  color: var(--dnd-text-gold);
+  font-weight: 500;
 }
 
 .configure-player-input-with-voice select:focus,

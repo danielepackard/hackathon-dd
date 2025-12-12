@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const apiKey = process.env.ELEVENLABS_API_KEY;
+    const apiKey = process.env.ELEVEN_LABS_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "ELEVENLABS_API_KEY not configured" },
+        { error: "ELEVEN_LABS_API_KEY not configured" },
         { status: 500 }
       );
     }
