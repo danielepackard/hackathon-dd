@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConversation } from "@elevenlabs/react";
+import { useRouter } from "next/navigation";
 
 interface DialogueMessage {
   id: string;
@@ -11,10 +12,12 @@ interface DialogueMessage {
 }
 
 export default function PlayPage() {
+  const router = useRouter();
   const [dialogueHistory, setDialogueHistory] = useState<DialogueMessage[]>([]);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isDialogueOpen, setIsDialogueOpen] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<
     "disconnected" | "connecting" | "connected" | "error"
   >("disconnected");
@@ -170,6 +173,12 @@ export default function PlayPage() {
     setConnectionStatus("disconnected");
   };
 
+  // Handle end campaign - navigate to configure page
+  const handleEndCampaign = async () => {
+    await conversation.endSession();
+    router.push("/configure");
+  };
+
   return (
     <div className="dnd-theme min-h-screen relative overflow-hidden">
       {/* Full-screen Image Display */}
@@ -191,15 +200,6 @@ export default function PlayPage() {
           </div>
         )}
       </div>
-
-      {/* Exit Button - Top Left */}
-      <button
-        onClick={handleEndSession}
-        className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-red-600/70 hover:bg-red-600 text-white flex items-center justify-center text-xl font-bold transition-all backdrop-blur-sm"
-        title="Exit session"
-      >
-        ✕
-      </button>
 
       {/* Error Banner */}
       {errorMessage && (
@@ -238,82 +238,120 @@ export default function PlayPage() {
         </span>
       </div>
 
-      {/* Dialogue Box - Overlay on bottom */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-2xl px-4">
-        <div className="bg-black/60 backdrop-blur-md rounded-xl border border-[var(--dnd-border)]/50 flex flex-col max-h-[32vh] overflow-hidden">
-          {/* Header with Mic Button */}
-          <div className="px-4 py-3 border-b border-[var(--dnd-border)]/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">📜</span>
-              <span className="text-[var(--dnd-text-gold)] font-semibold text-sm">Live Dialogue</span>
-            </div>
-            <button
-              onClick={handleMuteToggle}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                isMuted
-                  ? "bg-red-600/80 text-white"
-                  : "bg-green-600/80 text-white"
-              }`}
-              title={isMuted ? "Unmute microphone" : "Mute microphone"}
-            >
-              {isMuted ? "🔇 Muted" : "🎤 Mic On"}
-            </button>
-          </div>
+      {/* Dialogue Tab - Collapsed (Left side) */}
+      {!isDialogueOpen && (
+        <button
+          onClick={() => setIsDialogueOpen(true)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-black/60 backdrop-blur-md border border-[var(--dnd-border)]/50 rounded-r-lg px-2 py-4 hover:bg-black/70 transition-all"
+          title="Open Live Dialogue"
+        >
+          <span className="text-[var(--dnd-text-gold)] font-semibold text-sm whitespace-nowrap"
+            style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+          >
+            📜 Live Dialogue
+          </span>
+        </button>
+      )}
 
-          {/* Dialogue Messages */}
-          <div className="flex-1 overflow-y-auto dialogue-scroll p-3 space-y-2">
-            {dialogueHistory.length === 0 ? (
-              <div className="text-center text-white/50 py-6">
-                <p className="text-sm">The story will unfold here...</p>
-                <p className="text-xs mt-1">Speak to the Dungeon Master to begin</p>
+      {/* Dialogue Panel - Expanded (Left side) */}
+      {isDialogueOpen && (
+        <div className="absolute left-4 top-4 bottom-24 z-20 w-80 flex flex-col">
+          <div className="bg-black/60 backdrop-blur-md rounded-xl border border-[var(--dnd-border)]/50 flex flex-col h-full overflow-hidden">
+            {/* Header with Close Button */}
+            <div className="px-4 py-3 border-b border-[var(--dnd-border)]/30 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📜</span>
+                <span className="text-[var(--dnd-text-gold)] font-semibold text-sm">Live Dialogue</span>
               </div>
-            ) : (
-              dialogueHistory.map((message) => (
-                <div
-                  key={message.id}
-                  className={`p-2.5 rounded-lg ${
-                    message.speaker === "dm"
-                      ? "bg-[var(--dnd-primary)]/30 border-l-2 border-[var(--dnd-text-gold)]"
-                      : "bg-white/10 border-l-2 border-gray-400"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-sm">
-                      {message.speaker === "dm" ? "🎭" : "👥"}
-                    </span>
-                    <span
-                      className={`font-semibold text-xs ${
-                        message.speaker === "dm"
-                          ? "text-[var(--dnd-text-gold)]"
-                          : "text-gray-300"
-                      }`}
-                    >
-                      {message.speaker === "dm" ? "Dungeon Master" : "Team"}
-                    </span>
-                  </div>
-                  <p className="text-white/90 text-sm pl-5">
-                    {message.text}
-                  </p>
+              <button
+                onClick={() => setIsDialogueOpen(false)}
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center text-sm transition-all"
+                title="Close dialogue"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Dialogue Messages */}
+            <div className="flex-1 overflow-y-auto dialogue-scroll p-3 space-y-2">
+              {dialogueHistory.length === 0 ? (
+                <div className="text-center text-white/50 py-6">
+                  <p className="text-sm">The story will unfold here...</p>
+                  <p className="text-xs mt-1">Speak to the Dungeon Master to begin</p>
                 </div>
-              ))
-            )}
-            <div ref={dialogueEndRef} />
-          </div>
-
-          {/* Speaking Indicator */}
-          {conversation.isSpeaking && (
-            <div className="px-3 py-2 border-t border-[var(--dnd-border)]/30 flex items-center gap-2">
-              <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <div className="w-1.5 h-1.5 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <div className="w-1.5 h-1.5 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-              </div>
-              <span className="text-[var(--dnd-text-gold)] text-xs">
-                Dungeon Master is speaking...
-              </span>
+              ) : (
+                dialogueHistory.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`p-2.5 rounded-lg ${
+                      message.speaker === "dm"
+                        ? "bg-[var(--dnd-primary)]/30 border-l-2 border-[var(--dnd-text-gold)]"
+                        : "bg-white/10 border-l-2 border-gray-400"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-sm">
+                        {message.speaker === "dm" ? "🎭" : "👥"}
+                      </span>
+                      <span
+                        className={`font-semibold text-xs ${
+                          message.speaker === "dm"
+                            ? "text-[var(--dnd-text-gold)]"
+                            : "text-gray-300"
+                        }`}
+                      >
+                        {message.speaker === "dm" ? "Dungeon Master" : "Team"}
+                      </span>
+                    </div>
+                    <p className="text-white/90 text-sm pl-5">
+                      {message.text}
+                    </p>
+                  </div>
+                ))
+              )}
+              <div ref={dialogueEndRef} />
             </div>
-          )}
+
+            {/* Speaking Indicator */}
+            {conversation.isSpeaking && (
+              <div className="px-3 py-2 border-t border-[var(--dnd-border)]/30 flex items-center gap-2 shrink-0">
+                <div className="flex gap-1">
+                  <div className="w-1.5 h-1.5 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <div className="w-1.5 h-1.5 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <div className="w-1.5 h-1.5 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+                <span className="text-[var(--dnd-text-gold)] text-xs">
+                  Dungeon Master is speaking...
+                </span>
+              </div>
+            )}
+          </div>
         </div>
+      )}
+
+      {/* Bottom Controls - Center */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
+        {/* End Campaign Button */}
+        <button
+          onClick={handleEndCampaign}
+          className="px-5 py-2.5 rounded-full bg-red-600/70 hover:bg-red-600 backdrop-blur-sm text-white font-medium text-sm transition-all flex items-center gap-2"
+          title="End campaign and return to configure"
+        >
+          🚪 End Campaign
+        </button>
+
+        {/* Mute Button */}
+        <button
+          onClick={handleMuteToggle}
+          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all backdrop-blur-sm flex items-center gap-2 ${
+            isMuted
+              ? "bg-red-600/70 hover:bg-red-600 text-white"
+              : "bg-green-600/70 hover:bg-green-600 text-white"
+          }`}
+          title={isMuted ? "Unmute microphone" : "Mute microphone"}
+        >
+          {isMuted ? "🔇 Muted" : "🎤 Mic On"}
+        </button>
       </div>
     </div>
   );
