@@ -179,185 +179,148 @@ export default function PlayPage() {
   };
 
   return (
-    <div className="dnd-theme min-h-screen relative">
-      <div className="relative z-10 flex flex-col h-screen">
-        {/* Header */}
-        <header className="px-6 py-4 flex items-center justify-between border-b-2 border-[var(--dnd-border)]">
-          <h1 className="dnd-title text-2xl md:text-3xl">⚔️ Quest in Progress</h1>
-          <div className="flex items-center gap-4">
-            {/* Connection Status */}
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-3 h-3 rounded-full ${
-                  connectionStatus === "connected"
-                    ? "bg-green-500 animate-pulse"
-                    : connectionStatus === "connecting"
-                    ? "bg-yellow-500 animate-pulse"
-                    : connectionStatus === "error"
-                    ? "bg-red-500"
-                    : "bg-gray-500"
-                }`}
-              />
-              <span className="text-sm text-[var(--dnd-text-light)] hidden md:inline">
-                {connectionStatus === "connected"
-                  ? "Connected"
-                  : connectionStatus === "connecting"
-                  ? "Connecting..."
-                  : connectionStatus === "error"
-                  ? "Error"
-                  : "Disconnected"}
-              </span>
+    <div className="dnd-theme min-h-screen relative overflow-hidden">
+      {/* Full-screen Image Display */}
+      <div className="absolute inset-0">
+        <img
+          src={currentImage || "/placeholder-castle.jpg"}
+          alt="Scene illustration"
+          className="w-full h-full object-cover"
+        />
+        {/* Overlay for connecting state */}
+        {!currentImage && connectionStatus === "connecting" && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 border-4 border-[var(--dnd-text-gold)] border-t-transparent rounded-full animate-spin" />
+              <p className="text-[var(--dnd-text-light)] text-lg">
+                Summoning the Dungeon Master...
+              </p>
             </div>
+          </div>
+        )}
+      </div>
 
-            {/* Mute Button */}
+      {/* Exit Button - Top Left */}
+      <button
+        onClick={handleEndSession}
+        className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-red-600/70 hover:bg-red-600 text-white flex items-center justify-center text-xl font-bold transition-all backdrop-blur-sm"
+        title="Exit session"
+      >
+        ✕
+      </button>
+
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-red-900/80 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center gap-3">
+          <span className="text-red-200 text-sm">⚠️ {errorMessage}</span>
+          <button
+            onClick={handleReconnect}
+            className="text-white bg-red-700 hover:bg-red-600 px-3 py-1 rounded text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Connection Status Indicator - Top Right */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5">
+        <div
+          className={`w-2.5 h-2.5 rounded-full ${
+            connectionStatus === "connected"
+              ? "bg-green-500 animate-pulse"
+              : connectionStatus === "connecting"
+              ? "bg-yellow-500 animate-pulse"
+              : connectionStatus === "error"
+              ? "bg-red-500"
+              : "bg-gray-500"
+          }`}
+        />
+        <span className="text-xs text-white/80">
+          {connectionStatus === "connected"
+            ? "Live"
+            : connectionStatus === "connecting"
+            ? "Connecting..."
+            : connectionStatus === "error"
+            ? "Error"
+            : "Offline"}
+        </span>
+      </div>
+
+      {/* Dialogue Box - Overlay on bottom */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-2xl px-4">
+        <div className="bg-black/60 backdrop-blur-md rounded-xl border border-[var(--dnd-border)]/50 flex flex-col max-h-[32vh] overflow-hidden">
+          {/* Header with Mic Button */}
+          <div className="px-4 py-3 border-b border-[var(--dnd-border)]/30 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📜</span>
+              <span className="text-[var(--dnd-text-gold)] font-semibold text-sm">Live Dialogue</span>
+            </div>
             <button
               onClick={handleMuteToggle}
-              className={`dnd-btn px-4 py-2 rounded-lg font-semibold ${
-                isMuted ? "dnd-btn-active" : ""
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                isMuted
+                  ? "bg-red-600/80 text-white"
+                  : "bg-green-600/80 text-white"
               }`}
               title={isMuted ? "Unmute microphone" : "Mute microphone"}
             >
               {isMuted ? "🔇 Muted" : "🎤 Mic On"}
             </button>
-
-            {/* End Session Button */}
-            {connectionStatus === "connected" && (
-              <button
-                onClick={handleEndSession}
-                className="dnd-btn px-4 py-2 rounded-lg font-semibold bg-red-800 hover:bg-red-700 border-red-600"
-              >
-                End Session
-              </button>
-            )}
           </div>
-        </header>
 
-        {/* Error Banner */}
-        {errorMessage && (
-          <div className="bg-red-900/80 border-b border-red-700 px-6 py-3 flex items-center justify-between">
-            <span className="text-red-200">⚠️ {errorMessage}</span>
-            <button
-              onClick={handleReconnect}
-              className="dnd-btn px-4 py-2 rounded-lg text-sm"
-            >
-              Retry Connection
-            </button>
-          </div>
-        )}
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Image Display Area */}
-          <div className="flex-1 relative min-h-[40vh] md:min-h-[50vh]">
-            {currentImage ? (
-              <div className="relative w-full h-full">
-                <img
-                  src={currentImage}
-                  alt="Scene illustration"
-                  className="w-full h-full object-cover"
-                />
-                {isImageLoading && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-10 h-10 border-4 border-[var(--dnd-text-gold)] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-[var(--dnd-text-gold)] text-sm">
-                        Generating new scene...
-                      </span>
-                    </div>
-                  </div>
-                )}
+          {/* Dialogue Messages */}
+          <div className="flex-1 overflow-y-auto dialogue-scroll p-3 space-y-2">
+            {dialogueHistory.length === 0 ? (
+              <div className="text-center text-white/50 py-6">
+                <p className="text-sm">The story will unfold here...</p>
+                <p className="text-xs mt-1">Speak to the Dungeon Master to begin</p>
               </div>
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a1a1a] to-[#2d1b0e]">
-                {connectionStatus === "connecting" ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 border-4 border-[var(--dnd-text-gold)] border-t-transparent rounded-full animate-spin" />
-                    <p className="text-[var(--dnd-text-light)] text-lg">
-                      Summoning the Dungeon Master...
-                    </p>
+              dialogueHistory.map((message) => (
+                <div
+                  key={message.id}
+                  className={`p-2.5 rounded-lg ${
+                    message.speaker === "dm"
+                      ? "bg-[var(--dnd-primary)]/30 border-l-2 border-[var(--dnd-text-gold)]"
+                      : "bg-white/10 border-l-2 border-gray-400"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-sm">
+                      {message.speaker === "dm" ? "🎭" : "👥"}
+                    </span>
+                    <span
+                      className={`font-semibold text-xs ${
+                        message.speaker === "dm"
+                          ? "text-[var(--dnd-text-gold)]"
+                          : "text-gray-300"
+                      }`}
+                    >
+                      {message.speaker === "dm" ? "Dungeon Master" : "Team"}
+                    </span>
                   </div>
-                ) : connectionStatus === "connected" ? (
-                  <div className="flex flex-col items-center gap-4 text-center px-6">
-                    <span className="text-6xl">🏰</span>
-                    <p className="text-[var(--dnd-text-light)] text-lg">
-                      Your adventure awaits...
-                    </p>
-                    <p className="text-[var(--dnd-text-light)]/60 text-sm">
-                      Speak to begin your quest. Images will appear as the story unfolds.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4">
-                    <span className="text-6xl">🎲</span>
-                    <p className="text-[var(--dnd-text-light)] text-lg">
-                      Ready to play
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Dialogue Box */}
-          <div className="dnd-card mx-4 mb-4 md:mx-6 md:mb-6 flex flex-col max-h-[35vh]">
-            <div className="dnd-section-title px-4 py-3 text-lg flex items-center gap-2">
-              <span>📜</span>
-              <span>Live Dialogue</span>
-            </div>
-
-            <div className="flex-1 overflow-y-auto dialogue-scroll p-4 space-y-3">
-              {dialogueHistory.length === 0 ? (
-                <div className="text-center text-[var(--dnd-text-light)]/60 py-8">
-                  <p>The story will unfold here...</p>
-                  <p className="text-sm mt-2">
-                    Speak to the Dungeon Master to begin
+                  <p className="text-white/90 text-sm pl-5">
+                    {message.text}
                   </p>
                 </div>
-              ) : (
-                dialogueHistory.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`p-3 rounded-lg ${
-                      message.speaker === "dm" ? "dialogue-dm" : "dialogue-team"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">
-                        {message.speaker === "dm" ? "🎭" : "👥"}
-                      </span>
-                      <span
-                        className={`font-semibold text-sm ${
-                          message.speaker === "dm"
-                            ? "text-[var(--dnd-text-gold)]"
-                            : "text-gray-300"
-                        }`}
-                      >
-                        {message.speaker === "dm" ? "Dungeon Master" : "Team"}
-                      </span>
-                    </div>
-                    <p className="text-[var(--dnd-text-light)] pl-7">
-                      {message.text}
-                    </p>
-                  </div>
-                ))
-              )}
-              <div ref={dialogueEndRef} />
-            </div>
-
-            {/* Speaking Indicator */}
-            {conversation.isSpeaking && (
-              <div className="px-4 py-2 border-t border-[var(--dnd-border)] flex items-center gap-2">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="w-2 h-2 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <div className="w-2 h-2 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
-                <span className="text-[var(--dnd-text-gold)] text-sm">
-                  Dungeon Master is speaking...
-                </span>
-              </div>
+              ))
             )}
+            <div ref={dialogueEndRef} />
           </div>
+
+          {/* Speaking Indicator */}
+          {conversation.isSpeaking && (
+            <div className="px-3 py-2 border-t border-[var(--dnd-border)]/30 flex items-center gap-2">
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <div className="w-1.5 h-1.5 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <div className="w-1.5 h-1.5 bg-[var(--dnd-text-gold)] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+              <span className="text-[var(--dnd-text-gold)] text-xs">
+                Dungeon Master is speaking...
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

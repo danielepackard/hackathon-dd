@@ -7,7 +7,26 @@ fal.config({
 });
 
 const BASE_PROMPT =
-  "Fantasy RPG illustration, Dungeons & Dragons style, mystical atmosphere, detailed digital painting, dramatic lighting, epic scene: ";
+  "Fantasy RPG illustration, Dungeons & Dragons official artwork style, highly detailed digital painting, dramatic cinematic lighting, epic fantasy scene, rich colors, professional concept art quality: ";
+
+// Clean up narration to extract visual scene description
+function extractVisualScene(narration: string): string {
+  // Remove common non-visual phrases
+  let cleaned = narration
+    .replace(/What do you do\??/gi, "")
+    .replace(/What will you do\??/gi, "")
+    .replace(/How do you respond\??/gi, "")
+    .replace(/Roll for initiative[.!]?/gi, "")
+    .replace(/\?+/g, ".")
+    .trim();
+
+  // Limit length to avoid overly long prompts
+  if (cleaned.length > 400) {
+    cleaned = cleaned.substring(0, 400) + "...";
+  }
+
+  return cleaned;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,15 +39,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fullPrompt = `${BASE_PROMPT}${narratorText}`;
+    const cleanedScene = extractVisualScene(narratorText);
+    const fullPrompt = `${BASE_PROMPT}${cleanedScene}`;
 
-    // Use fal-ai/nano-banana model for fast image generation
-    const result = await fal.subscribe("fal-ai/fast-sdxl", {
+    console.log("Generating image with prompt:", fullPrompt);
+
+    // Use fal-ai/flux/dev for high quality image generation
+    const result = await fal.subscribe("fal-ai/flux/dev", {
       input: {
         prompt: fullPrompt,
         image_size: "landscape_16_9",
-        num_inference_steps: 4,
+        num_inference_steps: 28,
+        guidance_scale: 3.5,
         num_images: 1,
+        enable_safety_checker: true,
       },
       logs: false,
     });
