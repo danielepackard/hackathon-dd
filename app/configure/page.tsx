@@ -27,9 +27,9 @@ const classOptions = [
 export default function ConfigurePage() {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([
-    { id: 0, name: 'Mark', species: 'Human', class: 'Fighter', customSpecies: '', customClass: '' },
-    { id: 1, name: 'Stephen', species: 'Elf', class: 'Ranger', customSpecies: '', customClass: '' },
-    { id: 2, name: 'James', species: 'Dwarf', class: 'Cleric', customSpecies: '', customClass: '' }
+    { id: 0, name: 'Gahegus', species: 'Human', class: 'Fighter', customSpecies: '', customClass: '' },
+    { id: 1, name: 'Aria', species: 'Elf', class: 'Ranger', customSpecies: '', customClass: '' },
+    { id: 2, name: 'Borus', species: 'Dwarf', class: 'Cleric', customSpecies: '', customClass: '' }
   ]);
   const [playerIdCounter, setPlayerIdCounter] = useState(3);
   
