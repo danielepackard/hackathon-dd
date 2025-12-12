@@ -2,404 +2,528 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
-import Textarea from "@/components/ui/Textarea";
-import { Player, GameConfiguration } from "@/lib/types";
+
+interface Player {
+  id: number;
+  species: string;
+  class: string;
+  customSpecies: string;
+  customClass: string;
+}
+
+const speciesOptions = [
+  'Human', 'Elf', 'Dwarf', 'Halfling', 'Dragonborn', 'Gnome', 
+  'Half-Elf', 'Half-Orc', 'Tiefling', 'Aasimar', 'Firbolg', 
+  'Goliath', 'Kenku', 'Lizardfolk', 'Tabaxi', 'Triton', 'Warforged'
+];
+
+const classOptions = [
+  'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk',
+  'Paladin', 'Ranger', 'Rogue', 'Sorcerer', 'Warlock', 'Wizard',
+  'Artificer', 'Blood Hunter'
+];
 
 export default function ConfigurePage() {
   const router = useRouter();
-  const [campaignName, setCampaignName] = useState("");
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
-  const [campaignType, setCampaignType] = useState<"custom" | "premade">("custom");
   const [players, setPlayers] = useState<Player[]>([
-    { id: "1", name: "", characterName: "", characterClass: "", level: 1 },
+    { id: 0, species: '', class: '', customSpecies: '', customClass: '' }
   ]);
-  const [musicPrompt, setMusicPrompt] = useState("");
-  const [isGeneratingMusic, setIsGeneratingMusic] = useState(false);
-  const [musicGenerationStatus, setMusicGenerationStatus] = useState<{
-    type: "success" | "error" | null;
-    message: string;
-  }>({ type: null, message: "" });
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const [hasAudio, setHasAudio] = useState(false);
+  const [playerIdCounter, setPlayerIdCounter] = useState(1);
+  
+  const [musicTheme, setMusicTheme] = useState("");
+  const [musicCustom, setMusicCustom] = useState("");
+  const [showMusicCustom, setShowMusicCustom] = useState(false);
+  
+  const [campaignLength, setCampaignLength] = useState("");
+  const [genre, setGenre] = useState("");
+  const [genreCustom, setGenreCustom] = useState("");
+  const [showGenreCustom, setShowGenreCustom] = useState(false);
+  
+  const [musicVoiceActive, setMusicVoiceActive] = useState(false);
+  const [musicVoiceStatus, setMusicVoiceStatus] = useState("");
+  const [genreVoiceActive, setGenreVoiceActive] = useState(false);
+  const [genreVoiceStatus, setGenreVoiceStatus] = useState("");
+  
+  const [playerVoiceActive, setPlayerVoiceActive] = useState<{ [key: string]: boolean }>({});
+  const [playerVoiceStatus, setPlayerVoiceStatus] = useState<{ [key: string]: string }>({});
+  
+  const [showModal, setShowModal] = useState(false);
+  const [modalPlayer, setModalPlayer] = useState<Player | null>(null);
+  const [modalPlayerIndex, setModalPlayerIndex] = useState(0);
+  
+  const recognitionRef = useRef<any>(null);
 
   const addPlayer = () => {
-    setPlayers([
-      ...players,
-      {
-        id: Date.now().toString(),
-        name: "",
-        characterName: "",
-        characterClass: "",
-        level: 1,
-      },
-    ]);
+    setPlayers([...players, { 
+      id: playerIdCounter, 
+      species: '', 
+      class: '', 
+      customSpecies: '', 
+      customClass: '' 
+    }]);
+    setPlayerIdCounter(playerIdCounter + 1);
   };
 
-  const removePlayer = (id: string) => {
+  const removePlayer = (id: number) => {
     if (players.length > 1) {
-      setPlayers(players.filter((p) => p.id !== id));
+      setPlayers(players.filter(p => p.id !== id));
     }
   };
 
-  const updatePlayer = (id: string, field: keyof Player, value: string | number) => {
-    setPlayers(
-      players.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-    );
+  const updatePlayer = (id: number, field: keyof Player, value: string) => {
+    setPlayers(players.map(p => 
+      p.id === id ? { ...p, [field]: value } : p
+    ));
   };
 
-  const handleGenerateMusic = async () => {
-    if (!musicPrompt.trim()) {
-      setMusicGenerationStatus({
-        type: "error",
-        message: "Please enter a music prompt",
-      });
+  const getCharacterImage = (player: Player) => {
+    const species = player.species === 'custom' ? player.customSpecies : player.species;
+    const className = player.class === 'custom' ? player.customClass : player.class;
+    
+    if (!species && !className) {
+      return null;
+    }
+    
+    const searchTerms = `${species || 'character'} ${className || 'adventurer'}`.trim();
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(searchTerms)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+  };
+
+  const showCharacterModal = (playerId: number) => {
+    const player = players.find(p => p.id === playerId);
+    if (player) {
+      const index = players.findIndex(p => p.id === playerId);
+      setModalPlayer(player);
+      setModalPlayerIndex(index);
+      setShowModal(true);
+    }
+  };
+
+  const startVoiceRecognition = (
+    inputElement: HTMLInputElement | null,
+    buttonId: string,
+    statusSetter: (status: string) => void,
+    activeSetter: (active: boolean) => void,
+    onResult?: (transcript: string) => void
+  ) => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      statusSetter('Speech recognition not supported in this browser.');
       return;
     }
-
-    // Stop any currently playing audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    setHasAudio(false);
-    setIsAudioPlaying(false);
-
-    setIsGeneratingMusic(true);
-    setMusicGenerationStatus({ type: null, message: "" });
-
-    try {
-      console.log("[Frontend] Sending music generation request:", {
-        prompt: musicPrompt.substring(0, 100) + (musicPrompt.length > 100 ? "..." : ""),
-      });
-
-      const response = await fetch("/api/music/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt: musicPrompt }),
-      });
-
-      const data = await response.json();
-
-      console.log("[Frontend] Received response:", {
-        success: data.success,
-        hasAudio: !!data.audio,
-        audioSize: data.audioSize,
-        format: data.format,
-      });
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to generate music");
+    
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    
+    activeSetter(true);
+    statusSetter('🎤 Listening... Speak now!');
+    
+    recognition.onstart = () => {
+      statusSetter('🎤 Listening... Speak now!');
+    };
+    
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      if (inputElement) {
+        inputElement.value = transcript;
+        inputElement.dispatchEvent(new Event('input'));
       }
-
-      if (data.audio) {
-        // Create audio element and auto-play
-        const audio = new Audio(`data:audio/${data.format || "mpeg"};base64,${data.audio}`);
-        audioRef.current = audio;
-
-        // Set up event listeners
-        audio.onloadeddata = () => {
-          console.log("[Frontend] Audio loaded, starting playback");
-          setHasAudio(true);
-        };
-
-        audio.onplay = () => {
-          console.log("[Frontend] Audio playback started");
-          setIsAudioPlaying(true);
-          setMusicGenerationStatus({
-            type: "success",
-            message: "Music generated and playing!",
-          });
-        };
-
-        audio.onpause = () => {
-          console.log("[Frontend] Audio playback paused");
-          setIsAudioPlaying(false);
-        };
-
-        audio.onerror = (e) => {
-          console.error("[Frontend] Audio playback error:", e);
-          setHasAudio(false);
-          setIsAudioPlaying(false);
-          setMusicGenerationStatus({
-            type: "error",
-            message: "Failed to play audio",
-          });
-        };
-
-        audio.onended = () => {
-          console.log("[Frontend] Audio playback ended");
-          setIsAudioPlaying(false);
-          setMusicGenerationStatus({
-            type: "success",
-            message: "Music finished playing",
-          });
-        };
-
-        // Attempt to auto-play
-        setHasAudio(true);
-        audio.play().catch((error) => {
-          console.error("[Frontend] Auto-play blocked:", error);
-          setIsAudioPlaying(false);
-          setMusicGenerationStatus({
-            type: "success",
-            message: "Music generated! Click play to listen.",
-          });
-        });
-      } else {
-        setMusicGenerationStatus({
-          type: "success",
-          message: data.message || "Music generated successfully!",
-        });
+      statusSetter(`✓ Heard: "${transcript}"`);
+      if (onResult) {
+        onResult(transcript);
       }
-    } catch (error) {
-      console.error("[Frontend] Error generating music:", error);
-      setMusicGenerationStatus({
-        type: "error",
-        message: error instanceof Error ? error.message : "Failed to generate music",
-      });
-    } finally {
-      setIsGeneratingMusic(false);
-    }
+    };
+    
+    recognition.onerror = (event: any) => {
+      statusSetter(`Error: ${event.error}`);
+      activeSetter(false);
+    };
+    
+    recognition.onend = () => {
+      activeSetter(false);
+      if (statusSetter.toString().includes('Listening')) {
+        statusSetter('');
+      }
+    };
+    
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   const handleStartGame = () => {
-    const config: GameConfiguration = {
-      campaignName,
-      players: players.filter((p) => p.name.trim() !== ""),
-      difficulty,
-      campaignType,
-      maxPlayers: players.length,
+    const gameData = {
+      musicTheme: musicTheme === 'custom' ? musicCustom : musicTheme,
+      players: players.map((p, index) => ({
+        playerNumber: index + 1,
+        species: p.species === 'custom' ? p.customSpecies : p.species,
+        class: p.class === 'custom' ? p.customClass : p.class
+      })),
+      campaignLength: campaignLength,
+      genre: genre === 'custom' ? genreCustom : genre
     };
-
-    // Store configuration in localStorage (or send to API)
-    localStorage.setItem("dnd-game-config", JSON.stringify(config));
+    
+    // Store configuration
+    localStorage.setItem("dnd-game-config", JSON.stringify(gameData));
     
     // Navigate to gameplay page
     router.push("/play");
   };
 
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
-  const isValid = campaignName.trim() !== "" && players.some((p) => p.name.trim() !== "");
+  const isValid = campaignLength && genre && players.some(p => 
+    (p.species || p.customSpecies) && (p.class || p.customClass)
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-indigo-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">
-          Configure Your D&D Campaign
-        </h1>
-        <p className="text-lg text-gray-600 mb-8">
-          Set up your game with players and options before starting your adventure
-        </p>
+    <div className="configure-page">
+      <div className="configure-container">
+        <header className="configure-header">
+          <h1 className="configure-title">⚔️ Forge Your Adventure ⚔️</h1>
+          <p className="configure-subtitle">Prepare your quest, assemble your party, and begin your legend</p>
+        </header>
 
-        <div className="space-y-6">
-          {/* Campaign Settings */}
-          <Card title="Campaign Settings">
-            <div className="space-y-4">
-              <Input
-                label="Campaign Name"
-                placeholder="Enter campaign name..."
-                value={campaignName}
-                onChange={(e) => setCampaignName(e.target.value)}
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                  label="Difficulty"
-                  value={difficulty}
-                  onChange={(e) =>
-                    setDifficulty(e.target.value as "easy" | "medium" | "hard")
-                  }
-                  options={[
-                    { value: "easy", label: "Easy" },
-                    { value: "medium", label: "Medium" },
-                    { value: "hard", label: "Hard" },
-                  ]}
-                />
-                <Select
-                  label="Campaign Type"
-                  value={campaignType}
-                  onChange={(e) =>
-                    setCampaignType(e.target.value as "custom" | "premade")
-                  }
-                  options={[
-                    { value: "custom", label: "Custom" },
-                    { value: "premade", label: "Premade Campaign" },
-                  ]}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Players */}
-          <Card title="Players">
-            <div className="space-y-4">
-              {players.map((player, index) => (
-                <div
-                  key={player.id}
-                  className="p-4 border border-gray-200 rounded-lg bg-gray-50"
-                >
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-semibold text-gray-900">
-                      Player {index + 1}
-                    </h3>
-                    {players.length > 1 && (
-                      <button
-                        onClick={() => removePlayer(player.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Player Name"
-                      placeholder="Enter player name..."
-                      value={player.name}
-                      onChange={(e) =>
-                        updatePlayer(player.id, "name", e.target.value)
+        <main className="configure-form">
+          <div className="configure-form-grid">
+            {/* Musical Theme Section */}
+            <section className={`configure-section configure-section-compact`}>
+              <h2 className="configure-section-title">🎵 Musical Theme</h2>
+              <div className="configure-input-group">
+                <label htmlFor="music-theme">Choose a theme or create your own:</label>
+                <div className="configure-input-with-voice">
+                  <select
+                    id="music-theme"
+                    className="configure-dropdown"
+                    value={musicTheme}
+                    onChange={(e) => {
+                      setMusicTheme(e.target.value);
+                      setShowMusicCustom(e.target.value === 'custom');
+                      if (e.target.value !== 'custom') {
+                        setMusicCustom('');
                       }
-                    />
-                    <Input
-                      label="Character Name"
-                      placeholder="Enter character name..."
-                      value={player.characterName || ""}
-                      onChange={(e) =>
-                        updatePlayer(player.id, "characterName", e.target.value)
-                      }
-                    />
-                    <Input
-                      label="Character Class"
-                      placeholder="e.g., Fighter, Wizard..."
-                      value={player.characterClass || ""}
-                      onChange={(e) =>
-                        updatePlayer(player.id, "characterClass", e.target.value)
-                      }
-                    />
-                    <Input
-                      label="Level"
-                      type="number"
-                      min="1"
-                      max="20"
-                      value={player.level || 1}
-                      onChange={(e) =>
-                        updatePlayer(player.id, "level", parseInt(e.target.value) || 1)
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
-              <Button
-                onClick={addPlayer}
-                variant="secondary"
-                className="w-full"
-              >
-                + Add Player
-              </Button>
-            </div>
-          </Card>
-
-          {/* Music Generation */}
-          <Card title="Music Generation">
-            <div className="space-y-4">
-              <Textarea
-                label="Music Prompt"
-                placeholder="Describe the music you want to generate... (e.g., 'Epic fantasy battle music with orchestral instruments')"
-                value={musicPrompt}
-                onChange={(e) => setMusicPrompt(e.target.value)}
-                rows={4}
-              />
-              <div className="flex items-center gap-4">
-                <Button
-                  onClick={handleGenerateMusic}
-                  disabled={isGeneratingMusic || !musicPrompt.trim()}
-                  className="flex-shrink-0"
-                >
-                  {isGeneratingMusic ? "Generating..." : "Generate Music"}
-                </Button>
-                {musicGenerationStatus.type && (
-                  <p
-                    className={`text-sm ${
-                      musicGenerationStatus.type === "success"
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }`}
+                    }}
                   >
-                    {musicGenerationStatus.message}
-                  </p>
-                )}
-              </div>
-              {hasAudio && audioRef.current && (
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                  <Button
+                    <option value="">Select a theme...</option>
+                    <option value="spunky">Spunky</option>
+                    <option value="funky">Funky</option>
+                    <option value="adventurous">Adventurous</option>
+                    <option value="thrilling">Thrilling</option>
+                    <option value="eerie">Eerie</option>
+                    <option value="spicy">Spicy</option>
+                    <option value="classic">Classic</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                  <button
+                    type="button"
+                    className={`configure-voice-btn ${musicVoiceActive ? 'active' : ''}`}
                     onClick={() => {
-                      if (audioRef.current) {
-                        if (audioRef.current.paused) {
-                          audioRef.current.play();
-                        } else {
-                          audioRef.current.pause();
+                      const input = document.getElementById('music-custom') as HTMLInputElement;
+                      startVoiceRecognition(
+                        input,
+                        'music',
+                        setMusicVoiceStatus,
+                        setMusicVoiceActive,
+                        (transcript) => {
+                          setMusicCustom(transcript);
+                          setMusicTheme('custom');
+                          setShowMusicCustom(true);
                         }
-                      }
+                      );
                     }}
-                    variant="secondary"
-                    className="flex-shrink-0"
+                    title="Speak your theme"
                   >
-                    {isAudioPlaying ? "⏸ Pause" : "▶ Play"}
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (audioRef.current) {
-                        audioRef.current.pause();
-                        audioRef.current.currentTime = 0;
-                        setIsAudioPlaying(false);
-                      }
-                    }}
-                    variant="secondary"
-                    className="flex-shrink-0"
-                  >
-                    ⏹ Stop
-                  </Button>
-                  <span className="text-sm text-gray-600">
-                    Audio controls
-                  </span>
+                    🎤
+                  </button>
                 </div>
-              )}
-              <p className="text-xs text-gray-500">
-                Note: Make sure you have set your ELEVEN_LABS_API_KEY in your environment variables.
-              </p>
-            </div>
-          </Card>
+                {showMusicCustom && (
+                  <input
+                    type="text"
+                    id="music-custom"
+                    className="configure-custom-input"
+                    placeholder="Or type your custom musical theme..."
+                    value={musicCustom}
+                    onChange={(e) => setMusicCustom(e.target.value)}
+                  />
+                )}
+                <div className="configure-voice-status">{musicVoiceStatus}</div>
+              </div>
+            </section>
 
-          {/* Actions */}
-          <div className="flex gap-4">
-            <Button href="/" variant="secondary">
-              Cancel
-            </Button>
-            <Button
+            {/* Campaign Options Section */}
+            <section className={`configure-section configure-section-compact`}>
+              <h2 className="configure-section-title">📜 Campaign Options</h2>
+              
+              <div className="configure-input-group">
+                <label htmlFor="campaign-length">Campaign Length:</label>
+                <select
+                  id="campaign-length"
+                  className="configure-dropdown"
+                  value={campaignLength}
+                  onChange={(e) => setCampaignLength(e.target.value)}
+                >
+                  <option value="">Select length...</option>
+                  <option value="quickie-quickie">Quickie Quickie</option>
+                  <option value="quickie">Quickie</option>
+                  <option value="short">Short</option>
+                  <option value="normal">Normal</option>
+                  <option value="long">Long</option>
+                  <option value="epic">Epic</option>
+                </select>
+              </div>
+
+              <div className="configure-input-group">
+                <label htmlFor="campaign-genre">Genre:</label>
+                <div className="configure-input-with-voice">
+                  <select
+                    id="campaign-genre"
+                    className="configure-dropdown"
+                    value={genre}
+                    onChange={(e) => {
+                      setGenre(e.target.value);
+                      setShowGenreCustom(e.target.value === 'custom');
+                      if (e.target.value !== 'custom') {
+                        setGenreCustom('');
+                      }
+                    }}
+                  >
+                    <option value="">Select genre...</option>
+                    <option value="Investigation">Investigation</option>
+                    <option value="Exploration">Exploration</option>
+                    <option value="Heist">Heist</option>
+                    <option value="Roleplay and intrigue">Roleplay and intrigue</option>
+                    <option value="Combat">Combat</option>
+                    <option value="Comedy">Comedy</option>
+                    <option value="Delivery">Delivery</option>
+                    <option value="Low fantasy">Low fantasy</option>
+                    <option value="Missions and quest chains">Missions and quest chains</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                  <button
+                    type="button"
+                    className={`configure-voice-btn ${genreVoiceActive ? 'active' : ''}`}
+                    onClick={() => {
+                      const input = document.getElementById('genre-custom') as HTMLInputElement;
+                      startVoiceRecognition(
+                        input,
+                        'genre',
+                        setGenreVoiceStatus,
+                        setGenreVoiceActive,
+                        (transcript) => {
+                          setGenreCustom(transcript);
+                          setGenre('custom');
+                          setShowGenreCustom(true);
+                        }
+                      );
+                    }}
+                    title="Speak your genre"
+                  >
+                    🎤
+                  </button>
+                </div>
+                {showGenreCustom && (
+                  <input
+                    type="text"
+                    id="genre-custom"
+                    className="configure-custom-input"
+                    placeholder="Or type your custom genre..."
+                    value={genreCustom}
+                    onChange={(e) => setGenreCustom(e.target.value)}
+                  />
+                )}
+                <div className="configure-voice-status">{genreVoiceStatus}</div>
+              </div>
+            </section>
+          </div>
+
+          {/* Players Section */}
+          <section className={`configure-section configure-section-players`}>
+            <h2 className="configure-section-title">👥 Your Party</h2>
+            <div className="configure-players-container">
+              {players.map((player, index) => {
+                const characterImage = getCharacterImage(player);
+                return (
+                  <div key={player.id} className="configure-player-card">
+                    <div className="configure-player-header">
+                      <span className="configure-player-number">Player {index + 1}</span>
+                      {players.length > 1 && (
+                        <button
+                          type="button"
+                          className="configure-remove-player"
+                          onClick={() => removePlayer(player.id)}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    <div className="configure-player-input-group">
+                      <label>Species:</label>
+                      <div className="configure-player-input-with-voice">
+                        <select
+                          value={player.species}
+                          onChange={(e) => {
+                            updatePlayer(player.id, 'species', e.target.value);
+                            if (e.target.value === 'custom') {
+                              const customInput = document.getElementById(`species-custom-${player.id}`) as HTMLInputElement;
+                              if (customInput) customInput.style.display = 'block';
+                            } else {
+                              updatePlayer(player.id, 'customSpecies', '');
+                              const customInput = document.getElementById(`species-custom-${player.id}`) as HTMLInputElement;
+                              if (customInput) customInput.style.display = 'none';
+                            }
+                          }}
+                        >
+                          <option value="">Select species...</option>
+                          {speciesOptions.map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                          <option value="custom">Custom...</option>
+                        </select>
+                        <button
+                          type="button"
+                          className={`configure-player-voice-btn ${playerVoiceActive[`species-${player.id}`] ? 'active' : ''}`}
+                          onClick={() => {
+                            const customInput = document.getElementById(`species-custom-${player.id}`) as HTMLInputElement;
+                            if (player.species !== 'custom') {
+                              updatePlayer(player.id, 'species', 'custom');
+                              if (customInput) customInput.style.display = 'block';
+                            }
+                            startVoiceRecognition(
+                              customInput,
+                              `species-${player.id}`,
+                              (status) => setPlayerVoiceStatus({ ...playerVoiceStatus, [`species-${player.id}`]: status }),
+                              (active) => setPlayerVoiceActive({ ...playerVoiceActive, [`species-${player.id}`]: active }),
+                              (transcript) => updatePlayer(player.id, 'customSpecies', transcript)
+                            );
+                          }}
+                        >
+                          🎤
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        id={`species-custom-${player.id}`}
+                        placeholder="Or type custom species..."
+                        value={player.customSpecies}
+                        onChange={(e) => updatePlayer(player.id, 'customSpecies', e.target.value)}
+                        style={{ display: player.species === 'custom' ? 'block' : 'none', marginTop: '8px', width: '100%', padding: '8px 12px', fontSize: '0.95rem', fontFamily: 'Cinzel, serif', background: 'rgba(26, 26, 26, 0.8)', border: '2px solid var(--dnd-border)', borderRadius: '6px', color: 'var(--dnd-text-light)' }}
+                      />
+                    </div>
+                    <div className="configure-player-input-group">
+                      <label>Class:</label>
+                      <div className="configure-player-input-with-voice">
+                        <select
+                          value={player.class}
+                          onChange={(e) => {
+                            updatePlayer(player.id, 'class', e.target.value);
+                            if (e.target.value === 'custom') {
+                              const customInput = document.getElementById(`class-custom-${player.id}`) as HTMLInputElement;
+                              if (customInput) customInput.style.display = 'block';
+                            } else {
+                              updatePlayer(player.id, 'customClass', '');
+                              const customInput = document.getElementById(`class-custom-${player.id}`) as HTMLInputElement;
+                              if (customInput) customInput.style.display = 'none';
+                            }
+                          }}
+                        >
+                          <option value="">Select class...</option>
+                          {classOptions.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          <option value="custom">Custom...</option>
+                        </select>
+                        <button
+                          type="button"
+                          className={`configure-player-voice-btn ${playerVoiceActive[`class-${player.id}`] ? 'active' : ''}`}
+                          onClick={() => {
+                            const customInput = document.getElementById(`class-custom-${player.id}`) as HTMLInputElement;
+                            if (player.class !== 'custom') {
+                              updatePlayer(player.id, 'class', 'custom');
+                              if (customInput) customInput.style.display = 'block';
+                            }
+                            startVoiceRecognition(
+                              customInput,
+                              `class-${player.id}`,
+                              (status) => setPlayerVoiceStatus({ ...playerVoiceStatus, [`class-${player.id}`]: status }),
+                              (active) => setPlayerVoiceActive({ ...playerVoiceActive, [`class-${player.id}`]: active }),
+                              (transcript) => updatePlayer(player.id, 'customClass', transcript)
+                            );
+                          }}
+                        >
+                          🎤
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        id={`class-custom-${player.id}`}
+                        placeholder="Or type custom class..."
+                        value={player.customClass}
+                        onChange={(e) => updatePlayer(player.id, 'customClass', e.target.value)}
+                        style={{ display: player.class === 'custom' ? 'block' : 'none', marginTop: '8px', width: '100%', padding: '8px 12px', fontSize: '0.95rem', fontFamily: 'Cinzel, serif', background: 'rgba(26, 26, 26, 0.8)', border: '2px solid var(--dnd-border)', borderRadius: '6px', color: 'var(--dnd-text-light)' }}
+                      />
+                    </div>
+                    <div 
+                      className="configure-character-preview" 
+                      onClick={() => showCharacterModal(player.id)}
+                    >
+                      {characterImage ? (
+                        <img src={characterImage} alt="Character" onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="configure-character-placeholder">🎭</div>';
+                        }} />
+                      ) : (
+                        <div className="configure-character-placeholder">🎭</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button type="button" className="configure-add-btn" onClick={addPlayer}>
+              + Add Player
+            </button>
+          </section>
+
+          {/* Start Game Button */}
+          <div className="configure-start-game-container">
+            <button
+              type="button"
+              className="configure-start-game-btn"
               onClick={handleStartGame}
               disabled={!isValid}
-              className="flex-1"
             >
-              Start Game
-            </Button>
+              🚀 Begin Your Quest
+            </button>
+          </div>
+        </main>
+      </div>
+
+      {/* Character Modal */}
+      {showModal && modalPlayer && (
+        <div className={`configure-modal ${showModal ? 'show' : ''}`} onClick={() => setShowModal(false)}>
+          <div className="configure-modal-content" onClick={(e) => e.stopPropagation()}>
+            <span className="configure-close-modal" onClick={() => setShowModal(false)}>&times;</span>
+            <h2 id="modal-character-name">Player {modalPlayerIndex + 1}</h2>
+            <div className="configure-character-image-container">
+              {getCharacterImage(modalPlayer) ? (
+                <img 
+                  src={getCharacterImage(modalPlayer)!} 
+                  alt="Character"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="configure-character-placeholder">🎭</div>';
+                  }}
+                />
+              ) : (
+                <div className="configure-character-placeholder">🎭</div>
+              )}
+            </div>
+            <div className="configure-character-info">
+              <p><strong>Species:</strong> {modalPlayer.species === 'custom' ? modalPlayer.customSpecies : modalPlayer.species || 'Not selected'}</p>
+              <p><strong>Class:</strong> {modalPlayer.class === 'custom' ? modalPlayer.customClass : modalPlayer.class || 'Not selected'}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

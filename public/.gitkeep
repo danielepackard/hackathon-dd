@@ -1,0 +1,13 @@
+# Static Assets Directory
+
+This directory contains static assets that will be served by Next.js.
+
+Files placed in this directory can be referenced from the root URL path.
+For example, `/images/logo.png` would reference `public/images/logo.png`.
+
+Common subdirectories:
+- `/images` - Images, icons, logos
+- `/fonts` - Custom font files
+- `/audio` - Audio files
+- `/videos` - Video files
+- `/documents` - PDFs and other documents
