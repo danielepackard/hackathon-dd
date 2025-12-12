@@ -333,6 +333,13 @@ body {
 .configure-custom-input {
   background-image: none;
   padding: 12px 15px;
+  background-color: rgba(26, 26, 26, 0.8);
+  color: var(--dnd-text-light);
+}
+
+.configure-custom-input:not(:placeholder-shown) {
+  color: var(--dnd-text-gold);
+  font-weight: 500;
 }
 
 .configure-dropdown:focus {
@@ -369,11 +376,55 @@ body {
   outline: none;
   border-color: var(--dnd-secondary);
   box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+  background-color: rgba(26, 26, 26, 0.9);
+  color: var(--dnd-text-light);
 }
 
 .configure-custom-input {
   margin-top: 10px;
   cursor: text;
+}
+
+.configure-custom-input-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  align-items: stretch;
+}
+
+.configure-custom-input-group .configure-custom-input {
+  margin-top: 0;
+  flex: 1;
+}
+
+.configure-music-submit-btn {
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-family: 'Cinzel', serif;
+  background: linear-gradient(135deg, var(--dnd-primary) 0%, var(--dnd-accent) 100%);
+  border: 2px solid var(--dnd-secondary);
+  border-radius: 8px;
+  color: var(--dnd-text-gold);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px var(--dnd-shadow);
+  white-space: nowrap;
+}
+
+.configure-music-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(212, 175, 55, 0.5);
+  background: linear-gradient(135deg, var(--dnd-accent) 0%, var(--dnd-primary) 100%);
+}
+
+.configure-music-submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.configure-music-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .configure-voice-btn {

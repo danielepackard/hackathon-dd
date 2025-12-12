@@ -36,6 +36,7 @@ export default function ConfigurePage() {
   const [musicTheme, setMusicTheme] = useState("adventurous");
   const [musicCustom, setMusicCustom] = useState("");
   const [showMusicCustom, setShowMusicCustom] = useState(false);
+  const [isGeneratingMusic, setIsGeneratingMusic] = useState(false);
   
   const [campaignLength, setCampaignLength] = useState("normal");
   const [genre, setGenre] = useState("Exploration");
@@ -140,6 +141,57 @@ export default function ConfigurePage() {
     }
   };
 
+  const handleGenerateMusic = async () => {
+    if (!musicCustom.trim()) {
+      return;
+    }
+
+    setIsGeneratingMusic(true);
+    try {
+      const response = await fetch("/api/music/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: musicCustom.trim() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate music");
+      }
+
+      const data = await response.json();
+      if (data.success && data.audio) {
+        // Convert base64 audio to playable format
+        const audioData = atob(data.audio);
+        const audioArray = new Uint8Array(audioData.length);
+        for (let i = 0; i < audioData.length; i++) {
+          audioArray[i] = audioData.charCodeAt(i);
+        }
+        
+        const audioBlob = new Blob([audioArray], { type: 'audio/mpeg' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        // Create and play audio
+        const audio = new Audio(audioUrl);
+        audio.play().catch((error) => {
+          console.error("Error playing audio:", error);
+        });
+        
+        // Clean up the object URL after playback ends
+        audio.addEventListener('ended', () => {
+          URL.revokeObjectURL(audioUrl);
+        });
+        
+        console.log("Music generated and playing successfully");
+      }
+    } catch (error) {
+      console.error("Music generation error:", error);
+      alert(error instanceof Error ? error.message : "Failed to generate music. Please try again.");
+    } finally {
+      setIsGeneratingMusic(false);
+    }
+  };
+
   const handleStartGame = () => {
     const gameData = {
       musicTheme: musicTheme === 'custom' ? musicCustom : musicTheme,
@@ -202,14 +254,29 @@ export default function ConfigurePage() {
                   <option value="custom">Custom...</option>
                 </select>
                 {showMusicCustom && (
-                  <input
-                    type="text"
-                    id="music-custom"
-                    className="configure-custom-input"
-                    placeholder="Or type your custom musical theme..."
-                    value={musicCustom}
-                    onChange={(e) => setMusicCustom(e.target.value)}
-                  />
+                  <div className="configure-custom-input-group">
+                    <input
+                      type="text"
+                      id="music-custom"
+                      className="configure-custom-input"
+                      placeholder="Or type your custom musical theme..."
+                      value={musicCustom}
+                      onChange={(e) => setMusicCustom(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && musicCustom.trim() && !isGeneratingMusic) {
+                          handleGenerateMusic();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="configure-music-submit-btn"
+                      onClick={handleGenerateMusic}
+                      disabled={!musicCustom.trim() || isGeneratingMusic}
+                    >
+                      {isGeneratingMusic ? "Generating..." : "Generate Music"}
+                    </button>
+                  </div>
                 )}
               </div>
             </section>
